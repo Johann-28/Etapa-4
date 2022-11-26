@@ -75,10 +75,11 @@ public class LoginController : ControllerBase
         var claims = new[]
         {
             new Claim(ClaimTypes.Name, client.Name),
-            new Claim(ClaimTypes.Email,client.Email)
+            new Claim(ClaimTypes.Email,client.Email),
+            new Claim("Email", client.Email)
         };
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config.GetSection("JWT:Key").Value));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config.GetSection("JWT:Key2").Value));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha512);
 
         var securityToken = new JwtSecurityToken(
