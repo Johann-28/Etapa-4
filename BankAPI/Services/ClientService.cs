@@ -41,6 +41,7 @@ public class ClientService{
             existingClient.Name = client.Name;
             existingClient.PhoneNumber = client.PhoneNumber;
             existingClient.Email = client.Email;
+            existingClient.Pwd = client.Pwd;
 
             await _context.SaveChangesAsync();
         }

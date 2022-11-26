@@ -32,6 +32,7 @@ public class ClientController : ControllerBase
         return client;
     }
 
+    [Authorize(Policy = "SuperAdmin")]
     [HttpPost("create")]
     public async Task<IActionResult> Create(Client client){
         
@@ -40,6 +41,7 @@ public class ClientController : ControllerBase
         return CreatedAtAction(nameof(GetById), new {id = newClient.Id}, newClient);
     }
 
+    [Authorize(Policy = "SuperAdmin")]
     [HttpPut("update/{id}")]
 
     public async Task<IActionResult> Update(int id,Client client)
@@ -62,6 +64,7 @@ public class ClientController : ControllerBase
     
     }
 
+    [Authorize(Policy = "SuperAdmin")]
     [HttpDelete("delete/{id}")]
     public async Task<IActionResult> Delete(int id)
     {

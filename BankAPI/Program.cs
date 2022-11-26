@@ -34,6 +34,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
+builder.Services.AddAuthorization(options => {
+    options.AddPolicy("SuperAdmin", policy => policy.RequireClaim("AdminType","Super"));
+
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
