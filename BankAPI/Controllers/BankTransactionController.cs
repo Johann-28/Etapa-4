@@ -54,6 +54,12 @@ public class BankTransactionController : ControllerBase
             if(transactionDtoIn.TransactionType!=2)
                 return BadRequest(new{message = "Esa transaccion no corresponde al retiro en efectivo"});
 
+            if(transactionDtoIn.ExternalAccount is not null)
+                 return BadRequest(new {message = "No hace falta una cuenta externa"});
+
+             if(transactionDtoIn.Amount <= 0 )
+                return BadRequest(new{ message= " El monto debe ser mayor que cero"});
+            
 
             var account = await accountService.GetById(transactionDtoIn.AccountId);
 
@@ -70,7 +76,7 @@ public class BankTransactionController : ControllerBase
                 accountToUpdate.Balance = total;
                 accountToUpdate.ClientId = account.ClientId;
                 accountToUpdate.Id = account.Id;
-
+                
                 await accountService.Update(accountToUpdate);
 
                 //crear registro de transaccion
@@ -92,6 +98,10 @@ public class BankTransactionController : ControllerBase
 
         if(transactionDtoIn.ExternalAccount is null)
             return BadRequest(new {message = "Ingrese una cuenta de donde retirar"});
+
+         if(transactionDtoIn.Amount <= 0 )
+                return BadRequest(new{ message= " El monto debe ser mayor que cero"});
+            
 
         var account = await accountService.GetById(transactionDtoIn.AccountId);
 
@@ -117,6 +127,47 @@ public class BankTransactionController : ControllerBase
             
         }
     }
+
+    [HttpPost("Deposit")]
+    public async Task<IActionResult> Deposit(BankTransactionDtoIn transactionDtoIn)
+    {
+            string validationResult = await ValidateAccount(transactionDtoIn);
+
+            if(!validationResult.Equals("Valid"))
+                return BadRequest(new { message = validationResult});
+            
+            if(transactionDtoIn.TransactionType != 1)
+                return BadRequest(new {message = "Esa transacción no corresponde al déposito en efectivo"});
+            
+            if(transactionDtoIn.ExternalAccount is not null)
+                return BadRequest(new {message = "No hace falta una cuenta externa"});
+
+            var account = await accountService.GetById(transactionDtoIn.AccountId);
+
+            if(transactionDtoIn.Amount > 5000)
+                return BadRequest(new{message = "El limite de déposito es de 5000"});
+
+            if(transactionDtoIn.Amount <= 0 )
+                return BadRequest(new{ message= " El monto debe ser mayor que cero"});
+            
+            decimal total = (decimal)(account.Balance + transactionDtoIn.Amount);
+
+            //actualizar cuenta
+            AccountDtoIn accountToUpdate = new AccountDtoIn();
+
+                accountToUpdate.AccountType = account.AccountType;
+                accountToUpdate.Balance = total;
+                accountToUpdate.ClientId = account.ClientId;
+                accountToUpdate.Id = account.Id;
+
+                await accountService.Update(accountToUpdate);
+            
+                //crear regiistro de transaccion
+                var newTransaction = await bankTransactionService.Create(transactionDtoIn);
+                return CreatedAtAction(nameof(Get), new{ id = newTransaction.Id}, newTransaction);
+
+    }
+
 
     public async Task<string> ValidateAccount(BankTransactionDtoIn transactionDtoIn)
     {
