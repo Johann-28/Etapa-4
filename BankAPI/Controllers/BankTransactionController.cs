@@ -153,7 +153,7 @@ public class BankTransactionController : ControllerBase
             decimal total = (decimal)(account.Balance + transactionDtoIn.Amount);
 
             //actualizar cuenta
-            AccountDtoIn accountToUpdate = new AccountDtoIn();
+                AccountDtoIn accountToUpdate = new AccountDtoIn();
 
                 accountToUpdate.AccountType = account.AccountType;
                 accountToUpdate.Balance = total;
@@ -167,6 +167,26 @@ public class BankTransactionController : ControllerBase
                 return CreatedAtAction(nameof(Get), new{ id = newTransaction.Id}, newTransaction);
 
     }
+
+    [HttpDelete("Delete/{accountId}")]
+    public async Task<IActionResult> Delete(int accountId)
+    {
+        var accountToDelete = await accountService.GetById(accountId);
+
+        if(accountToDelete is not null)
+        {
+            if(accountToDelete.Balance != 0)
+                return BadRequest(new {message = "El saldo necesita ser de 0 para poder eliminar la cuenta"});
+           
+            await accountService.Delete(accountId);
+            return Ok();
+        }
+        else    
+        {
+            return NotFound(new {message = $"La cuenta con Id = {accountId} no existe"});
+        }
+    }
+
 
 
     public async Task<string> ValidateAccount(BankTransactionDtoIn transactionDtoIn)
