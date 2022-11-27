@@ -24,6 +24,7 @@ builder.Services.AddScoped<AccountService>();
 builder.Services.AddScoped<AccountTypeService>();
 builder.Services.AddScoped<LoginService>();
 builder.Services.AddScoped<BankTransactionService>();
+builder.Services.AddScoped<TransactionTypeService>();
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

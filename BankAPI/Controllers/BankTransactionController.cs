@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using BankAPI.Services;
 using BankAPI.Data.BankModels;
 using Microsoft.AspNetCore.Authorization;
+using TestBankApi.Data.DTOs;
 
 namespace BankAPI.Controllers;
 
@@ -11,17 +12,127 @@ namespace BankAPI.Controllers;
 
 public class BankTransactionController : ControllerBase
 {
-    private readonly BankTransactionService _service;
+    private readonly BankTransactionService bankTransactionService;
+    private readonly AccountService accountService;
 
-    public BankTransactionController(BankTransactionService service)
+    private readonly TransactionTypeService transactionTypeService;
+
+ 
+
+    public BankTransactionController(BankTransactionService bankTransactionService,
+                                     AccountService accountService,
+                                     TransactionTypeService transactionTypeService)
     {
-        _service = service;
+        this.bankTransactionService = bankTransactionService;
+        this.accountService = accountService;
+        this.transactionTypeService = transactionTypeService;
+        
     }
 
-    [HttpGet("getall")]
-    public async Task<IEnumerable<BankTransaction>> Get()
+    [HttpGet("CheckAccount/{id}")]
+    public async Task<IEnumerable<Account>> Get(int id)
     {
-        return await _service.GetAll();
+        var client = await bankTransactionService.ConsultAccount(id);
+
+        return client;
+    }
+    [HttpGet("CheckTransactions/{id}")]
+    public async Task<IEnumerable<BankTransaction>> GetTrans(int id)
+    {
+        var trans = await bankTransactionService.ConsultTransactions(id);
+        return trans;
     }
 
+    [HttpPost("TakeMoney/cash")]
+    public async Task<IActionResult> TakeMoneyCash(BankTransactionDtoIn transactionDtoIn)
+    {           
+            string validationResult = await ValidateAccount(transactionDtoIn);
+
+            if(!validationResult.Equals("Valid"))
+                return BadRequest(new {message = validationResult});
+            
+            if(transactionDtoIn.TransactionType!=2)
+                return BadRequest(new{message = "Esa transaccion no corresponde al retiro en efectivo"});
+
+
+            var account = await accountService.GetById(transactionDtoIn.AccountId);
+
+       
+            decimal total = (decimal)(account.Balance - transactionDtoIn.Amount);
+            if(total<0)
+                return BadRequest(new {message = $"Saldo insuficiente. Saldo: {account.Balance} monto: {transactionDtoIn.Amount}"});
+            else 
+            {  
+                //actualizar cuenta
+                AccountDtoIn accountToUpdate = new AccountDtoIn();
+
+                accountToUpdate.AccountType = account.AccountType;
+                accountToUpdate.Balance = total;
+                accountToUpdate.ClientId = account.ClientId;
+                accountToUpdate.Id = account.Id;
+
+                await accountService.Update(accountToUpdate);
+
+                //crear registro de transaccion
+                var newTransaction = await bankTransactionService.Create(transactionDtoIn);
+                return CreatedAtAction(nameof(Get), new{ id = newTransaction.Id}, newTransaction);
+            }   
+    }
+
+    [HttpPost("TakeMoney/transfer")]
+    public async Task<IActionResult>  TakeMoneyTransfer(BankTransactionDtoIn transactionDtoIn)
+    {
+        string validationResult = await ValidateAccount(transactionDtoIn);
+
+        if(!validationResult.Equals("Valid"))
+            return BadRequest(new {message = validationResult});
+
+        if(transactionDtoIn.TransactionType!=4)
+            return BadRequest(new { message = "Esa transacción no corresponde al retiro vía transferencia" });
+
+        if(transactionDtoIn.ExternalAccount is null)
+            return BadRequest(new {message = "Ingrese una cuenta de donde retirar"});
+
+        var account = await accountService.GetById(transactionDtoIn.AccountId);
+
+        decimal total = (decimal)(account.Balance - transactionDtoIn.Amount);
+
+        if(total < 0)
+            return BadRequest(new { message = $"Saldo insuficiente. Saldo: {account.Balance}  monto: {transactionDtoIn.Amount}"});
+        else
+        {
+            //actualizar cuenta
+            AccountDtoIn accountToUpdate = new AccountDtoIn();
+
+                accountToUpdate.AccountType = account.AccountType;
+                accountToUpdate.Balance = total;
+                accountToUpdate.ClientId = account.ClientId;
+                accountToUpdate.Id = account.Id;
+
+                await accountService.Update(accountToUpdate);
+            
+                //crear regiistro de transaccion
+                var newTransaction = await bankTransactionService.Create(transactionDtoIn);
+                return CreatedAtAction(nameof(Get), new{ id = newTransaction.Id}, newTransaction);
+            
+        }
+    }
+
+    public async Task<string> ValidateAccount(BankTransactionDtoIn transactionDtoIn)
+    {
+        string result = "Valid";
+
+        var account = await accountService.GetById(transactionDtoIn.AccountId);
+
+        if(account is null)
+            return $"La cuenta {transactionDtoIn.AccountId} no existe";
+        
+        var accountType = await transactionTypeService.GetById(transactionDtoIn.TransactionType);
+
+        if(accountType is null)
+            return $"El tipo de transaccion {transactionDtoIn.TransactionType} no existe";
+
+        return result;
+    }
+    
 }
